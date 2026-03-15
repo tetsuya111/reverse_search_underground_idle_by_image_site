@@ -1,44 +1,62 @@
-#!/usr/bin/env python3
 """
-画像タグ付けプログラム
+Djangoカスタムコマンド: 画像タグ付け
 DBからタグが付いていない画像データを抽出し、LLMを用いてタグを付ける
 """
 
 import os
-import sys
-import django
 import base64
 from pathlib import Path
+from django.core.management.base import BaseCommand, CommandError
+from django.conf import settings
 from dotenv import load_dotenv
 from openai import OpenAI
-
-# Django settings
-sys.path.append(str(Path(__file__).resolve().parent.parent / 'backend'))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-django.setup()
-
 from images.models import ImageData, ImageTag
 
 # 環境変数読み込み
 load_dotenv()
 
 
-class ImageTagger:
-    def __init__(self):
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        if not self.openai_api_key:
-            print("Error: OPENAI_API_KEY environment variable is not set")
-            sys.exit(1)
+class Command(BaseCommand):
+    help = 'DBからタグが付いていない画像にLLMを使用してタグを付ける'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--all',
+            action='store_true',
+            help='すべての未タグ画像を処理'
+        )
+        parser.add_argument(
+            '--limit',
+            type=int,
+            help='処理する画像の最大数'
+        )
+        parser.add_argument(
+            '--image-id',
+            type=int,
+            help='特定の画像IDを再タグ付け'
+        )
+
+    def handle(self, *args, **options):
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise CommandError('OPENAI_API_KEY environment variable is not set')
         
-        self.client = OpenAI(api_key=self.openai_api_key)
-        self.media_root = Path(__file__).resolve().parent.parent / 'media'
+        self.client = OpenAI(api_key=api_key)
+        self.media_root = Path(settings.MEDIA_ROOT)
+        
+        if options['image_id']:
+            self.retag_image(options['image_id'])
+        elif options['all']:
+            self.tag_untagged_images(options.get('limit'))
+        else:
+            raise CommandError('Please specify --all or --image-id')
     
-    def encode_image(self, image_path: Path) -> str:
+    def encode_image(self, image_path):
         """画像をBase64エンコード"""
         with open(image_path, 'rb') as f:
             return base64.b64encode(f.read()).decode('utf-8')
     
-    def generate_tags(self, image_path: Path) -> list:
+    def generate_tags(self, image_path):
         """LLMを使用して画像にタグを付ける"""
         try:
             # 画像をBase64エンコード
@@ -95,10 +113,10 @@ JSON形式で以下のように出力してください:
             return tags
         
         except Exception as e:
-            print(f"Error generating tags for {image_path}: {e}")
+            self.stdout.write(self.style.ERROR(f"Error generating tags for {image_path}: {e}"))
             return []
     
-    def tag_untagged_images(self, limit: int = None):
+    def tag_untagged_images(self, limit=None):
         """タグが付いていない画像にタグを付ける"""
         # タグが付いていない画像を取得
         untagged_images = ImageData.objects.filter(tags__isnull=True).distinct()
@@ -107,23 +125,23 @@ JSON形式で以下のように出力してください:
             untagged_images = untagged_images[:limit]
         
         total = untagged_images.count()
-        print(f"Found {total} untagged images")
+        self.stdout.write(f"Found {total} untagged images")
         
         for idx, image_data in enumerate(untagged_images, 1):
-            print(f"\nProcessing [{idx}/{total}]: Image ID {image_data.id}")
+            self.stdout.write(f"\nProcessing [{idx}/{total}]: Image ID {image_data.id}")
             
             # 画像パスを取得
             image_path = self.media_root / image_data.image.name
             
             if not image_path.exists():
-                print(f"  Image file not found: {image_path}")
+                self.stdout.write(self.style.ERROR(f"  Image file not found: {image_path}"))
                 continue
             
             # タグを生成
             tags = self.generate_tags(image_path)
             
             if not tags:
-                print("  Failed to generate tags")
+                self.stdout.write(self.style.ERROR("  Failed to generate tags"))
                 continue
             
             # タグをDBに保存
@@ -133,17 +151,18 @@ JSON形式で以下のように出力してください:
                     tag_name=tag_name
                 )
             
-            print(f"  Added {len(tags)} tags: {', '.join(tags[:5])}...")
+            self.stdout.write(
+                self.style.SUCCESS(f"  Added {len(tags)} tags: {', '.join(tags[:5])}...")
+            )
         
-        print(f"\nCompleted tagging {total} images")
+        self.stdout.write(self.style.SUCCESS(f"\nCompleted tagging {total} images"))
     
-    def retag_image(self, image_id: int):
+    def retag_image(self, image_id):
         """特定の画像のタグを再生成"""
         try:
             image_data = ImageData.objects.get(id=image_id)
         except ImageData.DoesNotExist:
-            print(f"Error: Image with ID {image_id} not found")
-            return
+            raise CommandError(f'Image with ID {image_id} not found')
         
         # 既存のタグを削除
         ImageTag.objects.filter(image=image_data).delete()
@@ -152,15 +171,13 @@ JSON形式で以下のように出力してください:
         image_path = self.media_root / image_data.image.name
         
         if not image_path.exists():
-            print(f"Error: Image file not found: {image_path}")
-            return
+            raise CommandError(f'Image file not found: {image_path}')
         
         # タグを生成
         tags = self.generate_tags(image_path)
         
         if not tags:
-            print("Failed to generate tags")
-            return
+            raise CommandError('Failed to generate tags')
         
         # タグをDBに保存
         for tag_name in tags:
@@ -169,26 +186,7 @@ JSON形式で以下のように出力してください:
                 tag_name=tag_name
             )
         
-        print(f"Added {len(tags)} tags to image {image_id}")
-        print(f"Tags: {', '.join(tags)}")
-
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage:")
-        print("  python tag_images.py all [limit]  - Tag all untagged images")
-        print("  python tag_images.py <image_id>   - Retag specific image")
-        print("\nExamples:")
-        print("  python tag_images.py all")
-        print("  python tag_images.py all 10")
-        print("  python tag_images.py 42")
-        sys.exit(1)
-    
-    tagger = ImageTagger()
-    
-    if sys.argv[1] == 'all':
-        limit = int(sys.argv[2]) if len(sys.argv) > 2 else None
-        tagger.tag_untagged_images(limit)
-    else:
-        image_id = int(sys.argv[1])
-        tagger.retag_image(image_id)
+        self.stdout.write(
+            self.style.SUCCESS(f'Added {len(tags)} tags to image {image_id}')
+        )
+        self.stdout.write(f'Tags: {", ".join(tags)}')

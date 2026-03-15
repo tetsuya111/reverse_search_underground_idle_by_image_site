@@ -1,13 +1,13 @@
-# バッチプログラム使用ガイド
+# Djangoカスタムコマンド使用ガイド
 
-このドキュメントでは、地下アイドル画像ギャラリーシステムのバッチプログラムの詳細な使用方法を説明します。
+このドキュメントでは、地下アイドル画像ギャラリーシステムのDjangoカスタム管理コマンドの詳細な使用方法を説明します。
 
 ## 📋 目次
 
 1. [前提条件](#前提条件)
-2. [バッチ1: SNSリスト自動作成](#バッチ1-snsリスト自動作成)
-3. [バッチ2: 画像データ取得](#バッチ2-画像データ取得)
-4. [バッチ3: 画像タグ付け](#バッチ3-画像タグ付け)
+2. [コマンド1: SNSリスト自動作成](#コマンド1-snsリスト自動作成)
+3. [コマンド2: 画像データ取得](#コマンド2-画像データ取得)
+4. [コマンド3: 画像タグ付け](#コマンド3-画像タグ付け)
 5. [ワークフロー例](#ワークフロー例)
 6. [トラブルシューティング](#トラブルシューティング)
 
@@ -15,7 +15,7 @@
 
 ### 環境変数の設定
 
-バッチプログラムを実行する前に、`.env`ファイルに以下の環境変数を設定してください：
+コマンドを実行する前に、`backend/.env`ファイルに以下の環境変数を設定してください：
 
 ```bash
 # 必須
@@ -25,14 +25,15 @@ OPENAI_API_KEY=your-openai-api-key-here
 TWITTER_API_KEY=your-twitter-api-key-here
 ```
 
-### パッケージのインストール
+### 作業ディレクトリ
+
+すべてのコマンドは`backend/`ディレクトリで実行してください：
 
 ```bash
-cd backend
-pip install django djangorestframework pillow requests instaloader python-dotenv openai
+cd /path/to/webapp/backend
 ```
 
-## バッチ1: SNSリスト自動作成
+## コマンド1: SNSリスト自動作成
 
 ### 概要
 
@@ -41,27 +42,26 @@ pip install django djangorestframework pillow requests instaloader python-dotenv
 ### 使用方法
 
 ```bash
-cd scripts
-python generate_sns_list.py <キーワード> [出力ファイル名]
+python manage.py generate_sns_list <キーワード> [オプション]
 ```
 
-### パラメータ
+### 引数・オプション
 
 - `<キーワード>`: 検索キーワード（必須）
   - 例: "東京 地下アイドル"、"大阪 ライブアイドル"
-- `[出力ファイル名]`: 出力先ファイル名（オプション、デフォルト: `sns_list.txt`）
+- `--output <ファイル名>`: 出力先ファイル名（オプション、デフォルト: `sns_list.txt`）
 
 ### 実行例
 
 ```bash
 # 基本的な使用方法
-python generate_sns_list.py "東京 地下アイドル"
+python manage.py generate_sns_list "東京 地下アイドル"
 
 # 出力ファイル名を指定
-python generate_sns_list.py "大阪 ライブアイドル" osaka_idols.txt
+python manage.py generate_sns_list "大阪 ライブアイドル" --output osaka_idols.txt
 
 # 特定のグループを検索
-python generate_sns_list.py "BiSH メンバー"
+python manage.py generate_sns_list "BiSH メンバー"
 ```
 
 ### 出力形式
@@ -76,13 +76,19 @@ https://www.instagram.com/member1_account/
 https://twitter.com/member2_account
 ```
 
+### ヘルプの表示
+
+```bash
+python manage.py generate_sns_list --help
+```
+
 ### 注意事項
 
 - LLMが生成するURLは必ずしも実在するとは限りません
 - 生成されたリストは手動で確認・編集することを推奨します
 - APIの使用料金が発生します（OpenAI API）
 
-## バッチ2: 画像データ取得
+## コマンド2: 画像データ取得
 
 ### 概要
 
@@ -91,22 +97,21 @@ SNSリストファイルを読み込み、各URLから画像を取得してデ�
 ### 使用方法
 
 ```bash
-cd scripts
-python fetch_images.py <SNSリストファイル>
+python manage.py fetch_images <SNSリストファイル>
 ```
 
-### パラメータ
+### 引数
 
-- `<SNSリストファイル>`: バッチ1で生成したファイル、または手動で作成したSNSリスト
+- `<SNSリストファイル>`: コマンド1で生成したファイル、または手動で作成したSNSリスト（必須）
 
 ### 実行例
 
 ```bash
 # 基本的な使用方法
-python fetch_images.py sns_list.txt
+python manage.py fetch_images sns_list.txt
 
 # 別のリストファイルを使用
-python fetch_images.py osaka_idols.txt
+python manage.py fetch_images osaka_idols.txt
 ```
 
 ### 処理内容
@@ -131,13 +136,19 @@ python fetch_images.py osaka_idols.txt
 現在のバージョンでは、Twitter APIの実装はスケルトンのみです。
 twitterapi.io のドキュメントに基づいて実装を追加してください。
 
+### ヘルプの表示
+
+```bash
+python manage.py fetch_images --help
+```
+
 ### 注意事項
 
 - Instagramはレート制限があるため、大量のアカウントを処理する場合は時間がかかります
 - APIキーが設定されていない場合、該当するSNSの処理はスキップされます
 - ネットワークエラーや取得失敗は自動的にスキップされます
 
-## バッチ3: 画像タグ付け
+## コマンド3: 画像タグ付け
 
 ### 概要
 
@@ -146,29 +157,33 @@ twitterapi.io のドキュメントに基づいて実装を追加してくださ
 ### 使用方法
 
 ```bash
-cd scripts
-
 # すべての未タグ画像を処理
-python tag_images.py all
+python manage.py tag_images --all
 
 # 処理件数を制限
-python tag_images.py all <件数>
+python manage.py tag_images --all --limit <件数>
 
 # 特定の画像を再タグ付け
-python tag_images.py <画像ID>
+python manage.py tag_images --image-id <画像ID>
 ```
+
+### オプション
+
+- `--all`: すべての未タグ画像を処理
+- `--limit <件数>`: 処理する画像の最大数（`--all`と併用）
+- `--image-id <画像ID>`: 特定の画像IDを再タグ付け
 
 ### 実行例
 
 ```bash
 # すべての未タグ画像にタグ付け
-python tag_images.py all
+python manage.py tag_images --all
 
 # 最初の10件のみ処理（テスト用）
-python tag_images.py all 10
+python manage.py tag_images --all --limit 10
 
 # 画像ID 42 を再タグ付け
-python tag_images.py 42
+python manage.py tag_images --image-id 42
 ```
 
 ### タグ付けルール
@@ -219,6 +234,12 @@ python tag_images.py 42
 ...（合計20個以上）
 ```
 
+### ヘルプの表示
+
+```bash
+python manage.py tag_images --help
+```
+
 ### 注意事項
 
 - 画像分析にはOpenAI APIを使用するため、料金が発生します
@@ -231,39 +252,43 @@ python tag_images.py 42
 ### シナリオ1: 新しい地下アイドルグループを追加
 
 ```bash
+cd backend
+
 # 1. SNSリストを生成
-cd scripts
-python generate_sns_list.py "新規グループ名" new_group.txt
+python manage.py generate_sns_list "新規グループ名" --output new_group.txt
 
 # 2. 生成されたリストを確認・編集（必要に応じて）
 cat new_group.txt
 
 # 3. 画像を取得
-python fetch_images.py new_group.txt
+python manage.py fetch_images new_group.txt
 
 # 4. 取得した画像にタグ付け（最初は少数でテスト）
-python tag_images.py all 5
+python manage.py tag_images --all --limit 5
 
 # 5. 問題なければ全件処理
-python tag_images.py all
+python manage.py tag_images --all
 ```
 
 ### シナリオ2: 既存の画像を再タグ付け
 
 ```bash
+cd backend
+
 # 1. 管理画面で画像IDを確認
 # http://localhost:8000/admin/images/imagedata/
 
 # 2. 特定の画像を再タグ付け
-cd scripts
-python tag_images.py 15
-python tag_images.py 16
-python tag_images.py 17
+python manage.py tag_images --image-id 15
+python manage.py tag_images --image-id 16
+python manage.py tag_images --image-id 17
 ```
 
 ### シナリオ3: 手動でSNSリストを作成
 
 ```bash
+cd backend
+
 # 1. リストファイルを手動作成
 cat > manual_list.txt << EOF
 https://www.instagram.com/account1/
@@ -272,11 +297,10 @@ https://twitter.com/account3
 EOF
 
 # 2. 画像を取得
-cd scripts
-python fetch_images.py manual_list.txt
+python manage.py fetch_images manual_list.txt
 
 # 3. タグ付け
-python tag_images.py all
+python manage.py tag_images --all
 ```
 
 ## トラブルシューティング
@@ -288,10 +312,10 @@ python tag_images.py all
 **解決方法**:
 ```bash
 # .envファイルを確認
-cat ../.env
+cat .env
 
 # APIキーを設定
-echo "OPENAI_API_KEY=sk-your-key-here" >> ../.env
+echo "OPENAI_API_KEY=sk-your-key-here" >> .env
 ```
 
 ### エラー: Image file not found
@@ -330,10 +354,10 @@ ls -la ../media/images/
 **解決方法**:
 ```bash
 # 少数ずつ処理
-python tag_images.py all 10
+python manage.py tag_images --all --limit 10
 
 # バックグラウンドで実行
-nohup python tag_images.py all &
+nohup python manage.py tag_images --all &
 ```
 
 ## ベストプラクティス
@@ -341,12 +365,12 @@ nohup python tag_images.py all &
 1. **段階的な実行**: 最初は少数のデータでテストしてから本番実行
 2. **リストの検証**: LLMが生成したSNSリストは必ず手動確認
 3. **定期実行**: cronやタスクスケジューラで定期的に新しい画像を取得
-4. **ログ監視**: エラーログを確認して問題を早期発見
+4. **ログ監視**: コマンド出力を確認して問題を早期発見
 5. **API使用量管理**: OpenAI APIの使用量を定期的にチェック
 
 ## さらなる改善案
 
-- バッチ処理のスケジューリング（cron設定）
+- カスタムコマンドのスケジューリング（Celery統合）
 - エラー時の自動リトライ機能
 - 処理進捗のダッシュボード
 - タグの品質評価とフィードバック機能

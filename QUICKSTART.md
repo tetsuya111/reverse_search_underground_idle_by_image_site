@@ -65,16 +65,16 @@ python manage.py createsuperuser
 ### テストデータ作成（オプション）
 
 ```bash
-cd scripts
+cd backend
 
 # 1. SNSリストを生成
-python generate_sns_list.py "地下アイドル" test_list.txt
+python manage.py generate_sns_list "地下アイドル" --output test_list.txt
 
 # 2. 画像を取得（少数でテスト）
-python fetch_images.py test_list.txt
+python manage.py fetch_images test_list.txt
 
 # 3. タグを付ける（最初の5件のみ）
-python tag_images.py all 5
+python manage.py tag_images --all --limit 5
 ```
 
 ## 📱 アプリケーションの使い方
@@ -93,6 +93,37 @@ python tag_images.py all 5
 - 画像カード下部の矢印ボタンで詳細ページへ
 - 大きな画像とアイドル情報を表示
 - 同じタグを持つ関連画像も表示
+
+## 🔧 Djangoカスタムコマンド
+
+すべてのバッチ処理は、Djangoのカスタム管理コマンドとして実装されています。
+
+### SNSリスト作成
+
+```bash
+cd backend
+python manage.py generate_sns_list "東京 地下アイドル"
+```
+
+### 画像取得
+
+```bash
+cd backend
+python manage.py fetch_images sns_list.txt
+```
+
+### タグ付け
+
+```bash
+cd backend
+# すべての未タグ画像にタグ付け
+python manage.py tag_images --all
+
+# 最大10件のみ処理
+python manage.py tag_images --all --limit 10
+```
+
+詳細は `COMMANDS_GUIDE.md` を参照してください。
 
 ## 🔧 トラブルシューティング
 
@@ -125,13 +156,13 @@ PORT=3001 npm start
 ## 📚 より詳しい情報
 
 - **詳細なセットアップ**: `README.md`
-- **バッチプログラムの使い方**: `BATCH_GUIDE.md`
+- **カスタムコマンドの使い方**: `COMMANDS_GUIDE.md`
 - **API仕様**: `http://localhost:8000/api/` (バックエンド起動時)
 
 ## 🎯 次のステップ
 
 1. 実際のアイドルグループのSNSリストを作成
-2. バッチプログラムで画像を大量取得
+2. カスタムコマンドで画像を大量取得
 3. タグ付けを実行
 4. Webアプリで閲覧・検索
 
