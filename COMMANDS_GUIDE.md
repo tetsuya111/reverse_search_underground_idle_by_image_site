@@ -131,10 +131,36 @@ python manage.py fetch_images osaka_idols.txt
 - 1アカウントあたり最大20件の投稿を取得
 - 重複画像はスキップ
 
-### Twitter取得について
+### Twitter取得の詳細
 
-現在のバージョンでは、Twitter APIの実装はスケルトンのみです。
-twitterapi.io のドキュメントに基づいて実装を追加してください。
+**twitterapi.io**を使用して実装されています。
+
+- 認証: `x-api-key`ヘッダーでAPIキーを送信
+- エンドポイント: `GET https://api.twitterapi.io/twitter/user/tweets`
+- パラメータ:
+  - `userName`: Twitterユーザー名
+  - `count`: 取得するツイート数（最大20件）
+- 画像のみを抽出（動画は除外）
+- 高解像度版の画像を取得（`:orig`サフィックス付き）
+- 重複画像はスキップ
+
+#### twitterapi.io APIキーの取得方法
+
+1. [twitterapi.io](https://twitterapi.io/)にアクセス
+2. アカウントを作成してログイン
+3. ダッシュボードでAPIキーを確認
+4. `.env`ファイルに設定:
+   ```bash
+   TWITTER_API_KEY=your_api_key_here
+   ```
+
+#### 料金について
+
+- **Instagram**: 無料（Instaloaderを使用）
+- **Twitter (twitterapi.io)**:
+  - $0.15 per 1,000 tweets
+  - 最小料金: $0.00015 per request
+  - 学生・研究機関向けの割引あり
 
 ### ヘルプの表示
 

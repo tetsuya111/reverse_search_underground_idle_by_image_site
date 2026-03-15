@@ -173,20 +173,109 @@ URL: {sns_url}
             self.stdout.write(self.style.ERROR(f"Error fetching from Instagram {instagram_url}: {e}"))
     
     def fetch_from_twitter(self, twitter_url):
-        """Twitter APIから画像を取得"""
+        """twitterapi.ioを使用してTwitterから画像を取得"""
         if not self.twitter_api_key:
             self.stdout.write(self.style.WARNING("Twitter API key not configured. Skipping Twitter."))
             return
         
         try:
-            # twitterapi.ioを使用した実装
-            # 注: 実際の実装にはAPI仕様に基づいた詳細な処理が必要
-            self.stdout.write(self.style.WARNING(f"Twitter fetching not fully implemented for: {twitter_url}"))
-            self.stdout.write("Please implement based on twitterapi.io documentation")
+            # URLからユーザー名を抽出
+            # 例: https://twitter.com/username または https://x.com/username
+            parts = twitter_url.rstrip('/').split('/')
+            username = parts[-1]
             
-            # アイドル情報を抽出
+            self.stdout.write(f"Fetching Twitter profile: @{username}")
+            
+            # twitterapi.io APIを使用してツイートを取得
+            api_url = 'https://api.twitterapi.io/twitter/user/tweets'
+            headers = {
+                'x-api-key': self.twitter_api_key
+            }
+            params = {
+                'userName': username,
+                'count': 20  # 最大20件取得
+            }
+            
+            response = requests.get(api_url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if data.get('status') != 'success':
+                self.stdout.write(self.style.ERROR(f"API Error: {data.get('message', 'Unknown error')}"))
+                return
+            
+            tweets = data.get('tweets', [])
+            self.stdout.write(f"Found {len(tweets)} tweets")
+            
+            # アイドル情報を抽出（1回のみ）
             idol_info = self.extract_idol_info(twitter_url)
-            self.stdout.write(f"Extracted idol info: {idol_info}")
+            
+            # 画像を含むツイートから画像を抽出
+            count = 0
+            for tweet in tweets:
+                # メディアが含まれているか確認
+                media_list = tweet.get('media', [])
+                
+                # entitiesからもメディアを取得を試みる
+                entities = tweet.get('entities', {})
+                if not media_list and 'media' in entities:
+                    media_list = entities.get('media', [])
+                
+                if not media_list:
+                    continue
+                
+                # 各メディア（画像）をダウンロード
+                for media in media_list:
+                    # 画像のみを処理（動画は除外）
+                    media_type = media.get('type', '')
+                    if media_type not in ['photo', 'image']:
+                        continue
+                    
+                    # 画像URLを取得
+                    # media_url_https または media_url を使用
+                    image_url = media.get('media_url_https') or media.get('media_url') or media.get('url')
+                    
+                    if not image_url:
+                        continue
+                    
+                    # 高解像度版のURLを取得（:orig を追加）
+                    if not image_url.endswith(':orig'):
+                        image_url = f"{image_url}:orig"
+                    
+                    tweet_id = tweet.get('id', '')
+                    image_filename = f"tw_{username}_{tweet_id}_{media.get('id', count)}.jpg"
+                    
+                    # 画像をダウンロード
+                    image_path = self.download_image(image_url, image_filename)
+                    
+                    if not image_path:
+                        continue
+                    
+                    # DBに保存
+                    relative_path = f"images/{image_filename}"
+                    tweet_url = tweet.get('url', f"https://twitter.com/{username}/status/{tweet_id}")
+                    
+                    image_data, created = ImageData.objects.get_or_create(
+                        source_url=tweet_url,
+                        defaults={'image': relative_path}
+                    )
+                    
+                    if created:
+                        # アイドル情報を保存
+                        IdolInfo.objects.create(
+                            image=image_data,
+                            group_name=idol_info.get('group_name', ''),
+                            idol_name=idol_info.get('idol_name', '')
+                        )
+                        self.stdout.write(self.style.SUCCESS(f"Saved: {image_filename}"))
+                        count += 1
+                    else:
+                        self.stdout.write(f"Already exists: {image_filename}")
+            
+            self.stdout.write(self.style.SUCCESS(f"Fetched {count} images from Twitter: @{username}"))
         
+        except requests.exceptions.RequestException as e:
+            self.stdout.write(self.style.ERROR(f"API request error for {twitter_url}: {e}"))
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error fetching from Twitter {twitter_url}: {e}"))
