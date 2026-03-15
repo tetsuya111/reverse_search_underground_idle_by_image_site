@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Typography, Button, Box, Grid, CircularProgress, Switch, FormControlLabel } from '@mui/material';
 import ShuffleIcon from '@mui/icons-material/Shuffle';
+import { useSearchParams } from 'react-router-dom';
 import { getImages, getRandomImages, ImageData } from '../api';
 import ImageCard from '../components/ImageCard';
 
@@ -9,11 +10,30 @@ const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
   const [page, setPage] = useState(1);
+  const [searchParams] = useSearchParams();
 
   const fetchImages = async () => {
     setLoading(true);
     try {
-      const response = await getImages(page);
+      // URLパラメータを取得
+      const personCountMin = searchParams.get('person_count_min');
+      const personCountMax = searchParams.get('person_count_max');
+      const exposureMin = searchParams.get('exposure_min');
+      const exposureMax = searchParams.get('exposure_max');
+      
+      // パラメータ付きでAPIを呼び出し
+      let url = `/images/?page=${page}`;
+      if (personCountMin) url += `&person_count_min=${personCountMin}`;
+      if (personCountMax) url += `&person_count_max=${personCountMax}`;
+      if (exposureMin) url += `&exposure_min=${exposureMin}`;
+      if (exposureMax) url += `&exposure_max=${exposureMax}`;
+      
+      const response = await getImages(page, {
+        person_count_min: personCountMin,
+        person_count_max: personCountMax,
+        exposure_min: exposureMin,
+        exposure_max: exposureMax,
+      });
       setImages(response.results);
     } catch (error) {
       console.error('Failed to fetch images:', error);
@@ -36,7 +56,7 @@ const HomePage: React.FC = () => {
 
   useEffect(() => {
     fetchImages();
-  }, [page]);
+  }, [page, searchParams]);
 
   return (
     <Container maxWidth={false} sx={{ py: 4 }}>

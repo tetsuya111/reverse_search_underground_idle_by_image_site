@@ -123,6 +123,19 @@ URL: {sns_url}
                 compress_json=False
             )
             
+            # 環境変数からログイン情報を取得してログイン
+            instagram_username = os.getenv('INSTAGRAM_USERNAME')
+            instagram_password = os.getenv('INSTAGRAM_PASSWORD')
+            
+            if instagram_username and instagram_password:
+                try:
+                    self.stdout.write(f"Logging in to Instagram as {instagram_username}")
+                    L.login(instagram_username, instagram_password)
+                    self.stdout.write(self.style.SUCCESS("Instagram login successful"))
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f"Instagram login failed: {e}"))
+                    self.stdout.write("Continuing without login (public posts only)")
+            
             # URLからユーザー名を抽出
             username = instagram_url.rstrip('/').split('/')[-1]
             

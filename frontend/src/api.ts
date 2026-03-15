@@ -41,9 +41,34 @@ export interface PaginatedResponse<T> {
   results: T[];
 }
 
+export interface ImageFilterParams {
+  person_count_min?: string | null;
+  person_count_max?: string | null;
+  exposure_min?: string | null;
+  exposure_max?: string | null;
+}
+
 // 画像一覧取得
-export const getImages = async (page: number = 1): Promise<PaginatedResponse<ImageData>> => {
-  const response = await apiClient.get<PaginatedResponse<ImageData>>(`/images/?page=${page}`);
+export const getImages = async (
+  page: number = 1,
+  filters?: ImageFilterParams
+): Promise<PaginatedResponse<ImageData>> => {
+  let url = `/images/?page=${page}`;
+  
+  if (filters?.person_count_min) {
+    url += `&person_count_min=${filters.person_count_min}`;
+  }
+  if (filters?.person_count_max) {
+    url += `&person_count_max=${filters.person_count_max}`;
+  }
+  if (filters?.exposure_min) {
+    url += `&exposure_min=${filters.exposure_min}`;
+  }
+  if (filters?.exposure_max) {
+    url += `&exposure_max=${filters.exposure_max}`;
+  }
+  
+  const response = await apiClient.get<PaginatedResponse<ImageData>>(url);
   return response.data;
 };
 
