@@ -144,6 +144,18 @@ JSON形式で以下のように出力してください:
                 self.stdout.write(self.style.ERROR("  Failed to generate tags"))
                 continue
             
+            # アイドル情報をタグに追加
+            try:
+                idol_info = image_data.idol_info
+                if idol_info.group_name:
+                    tags.append(f"グループ:{idol_info.group_name}")
+                    self.stdout.write(f"  Added group tag: {idol_info.group_name}")
+                if idol_info.idol_name:
+                    tags.append(f"名前:{idol_info.idol_name}")
+                    self.stdout.write(f"  Added idol name tag: {idol_info.idol_name}")
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"  No idol info found: {e}"))
+            
             # タグをDBに保存
             for tag_name in tags:
                 ImageTag.objects.create(
@@ -178,6 +190,18 @@ JSON形式で以下のように出力してください:
         
         if not tags:
             raise CommandError('Failed to generate tags')
+        
+        # アイドル情報をタグに追加
+        try:
+            idol_info = image_data.idol_info
+            if idol_info.group_name:
+                tags.append(f"グループ:{idol_info.group_name}")
+                self.stdout.write(f"Added group tag: {idol_info.group_name}")
+            if idol_info.idol_name:
+                tags.append(f"名前:{idol_info.idol_name}")
+                self.stdout.write(f"Added idol name tag: {idol_info.idol_name}")
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f"No idol info found: {e}"))
         
         # タグをDBに保存
         for tag_name in tags:
