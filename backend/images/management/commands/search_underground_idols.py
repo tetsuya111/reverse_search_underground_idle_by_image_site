@@ -1,6 +1,7 @@
 """
 Djangoカスタムコマンド: 地下アイドルグループ・メンバーSNS検索
 地下アイドルのグループ名を列挙し、各グループのSNSと所属メンバーのSNSを取得する
+Perplexity APIを使用してリアルタイムWeb検索を実行
 """
 
 import os
@@ -17,7 +18,7 @@ load_dotenv()
 
 
 class Command(BaseCommand):
-    help = '地下アイドルのグループとメンバーのSNSを検索・一覧化'
+    help = '地下アイドルのグループとメンバーのSNSを検索・一覧化（Perplexity API使用）'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -57,11 +58,16 @@ class Command(BaseCommand):
         limit = options['limit']
         use_stdin = options['stdin']
         
-        api_key = os.getenv('OPENAI_API_KEY')
+        # Perplexity API キーを取得
+        api_key = os.getenv('PERPLEXITY_API_KEY')
         if not api_key:
-            raise CommandError('OPENAI_API_KEY environment variable is not set')
+            raise CommandError('PERPLEXITY_API_KEY environment variable is not set')
         
-        self.client = OpenAI(api_key=api_key)
+        # Perplexity APIクライアントを初期化（OpenAI互換）
+        self.client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.perplexity.ai"
+        )
         
         # ステップ1: グループ名の取得
         if use_stdin:
@@ -175,8 +181,8 @@ class Command(BaseCommand):
         return self.extract_group_names_from_text(input_text)
     
     def extract_group_names_from_text(self, text):
-        """テキストからグループ名を抽出する"""
-        self.stdout.write("\nLLMでグループ名を抽出中...")
+        """テキストからグループ名を抽出する（Perplexity使用）"""
+        self.stdout.write("\nPerplexity APIでグループ名を抽出中...")
         
         prompt = f"""
 以下のテキストから、地下アイドルグループ名を全て抽出してください。
@@ -201,7 +207,7 @@ class Command(BaseCommand):
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="llama-3.1-sonar-large-128k-online",
                 messages=[
                     {
                         "role": "system",
@@ -209,12 +215,28 @@ class Command(BaseCommand):
                     },
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.2,
-                response_format={"type": "json_object"}
+                temperature=0.2
             )
             
-            result = json.loads(response.choices[0].message.content)
-            groups = result.get('groups', [])
+            # Perplexityはresponse_formatをサポートしていないため、手動でJSON抽出
+            content = response.choices[0].message.content
+            
+            # JSON部分を抽出
+            try:
+                # ```json ``` で囲まれている場合
+                if '```json' in content:
+                    json_str = content.split('```json')[1].split('```')[0].strip()
+                elif '```' in content:
+                    json_str = content.split('```')[1].split('```')[0].strip()
+                else:
+                    json_str = content
+                
+                result = json.loads(json_str)
+                groups = result.get('groups', [])
+            except:
+                # JSON抽出失敗時は空配列を返す
+                self.stdout.write(self.style.WARNING("JSON形式の抽出に失敗しました"))
+                groups = []
             
             if groups:
                 self.stdout.write(self.style.SUCCESS(f"✓ {len(groups)}個のグループ名を抽出しました"))
@@ -230,7 +252,7 @@ class Command(BaseCommand):
             return []
     
     def enumerate_underground_idol_groups(self, region, limit):
-        """地下アイドルグループ名を列挙する"""
+        """地下アイドルグループ名を列挙する（Perplexity Web検索使用）"""
         group_names=IdolInfo.objects.all().values_list("group_name",flat=True)
         group_names="\n".join(group_names)
         prompt = f"""
@@ -239,10 +261,11 @@ class Command(BaseCommand):
 以下のルールに従ってください:
 1. 実在する地下アイドルグループのみを記載
 2. メジャーではなく、ライブハウスや小規模会場で活動しているグループを優先
-3.最新情報をみて活動中であると判断できるグループ
+3. 最新情報をみて活動中であると判断できるグループ
 4. 各行に1つのグループ名のみを記載
 5. グループ名のみで、説明やコメントは不要
 6. JSON形式で出力
+7. Web検索で最新の情報を確認すること
 
 # 以下のグループ以外を取得すること
 {group_names}
@@ -255,36 +278,49 @@ class Command(BaseCommand):
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="llama-3.1-sonar-large-128k-online",
                 messages=[
                     {
                         "role": "system",
-                        "content": "あなたは地下アイドルに詳しい専門家です。正確な情報を提供してください。"
+                        "content": "あなたは地下アイドルに詳しい専門家です。Web検索で最新の正確な情報を提供してください。"
                     },
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                response_format={"type": "json_object"}
+                temperature=0.3
             )
             
-            result = json.loads(response.choices[0].message.content)
-            return result.get('groups', [])
+            # JSON部分を抽出
+            content = response.choices[0].message.content
+            try:
+                if '```json' in content:
+                    json_str = content.split('```json')[1].split('```')[0].strip()
+                elif '```' in content:
+                    json_str = content.split('```')[1].split('```')[0].strip()
+                else:
+                    json_str = content
+                
+                result = json.loads(json_str)
+                return result.get('groups', [])
+            except:
+                self.stdout.write(self.style.WARNING("JSON形式の抽出に失敗しました"))
+                return []
         
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error enumerating groups: {e}"))
             return []
     
     def get_group_sns(self, group_name):
-        """一つのグループのSNSアカウントを取得する"""
+        """一つのグループのSNSアカウントを取得する（Perplexity Web検索使用）"""
         prompt = f"""
 地下アイドルグループ「{group_name}」の公式SNSアカウントを特定してください。
 
 以下のルールに従ってください:
-1. Twitter（X）とInstagramのURLを探してください
-2. 公式アカウントのみを記載
-3. URLは完全な形式で記載（例: https://twitter.com/username）
-4. 実在するアカウントのみを記載
-5. JSON形式で出力
+1. Web検索で最新の情報を確認すること
+2. Twitter（X）とInstagramのURLを探してください
+3. 公式アカウントのみを記載
+4. URLは完全な形式で記載（例: https://twitter.com/username）
+5. 実在するアカウントのみを記載
+6. JSON形式で出力
 
 出力形式:
 {{
@@ -299,20 +335,32 @@ class Command(BaseCommand):
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="llama-3.1-sonar-large-128k-online",
                 messages=[
                     {
                         "role": "system",
-                        "content": "あなたは地下アイドルのSNS情報を正確に提供するアシスタントです。"
+                        "content": "あなたは地下アイドルのSNS情報を正確に提供するアシスタントです。Web検索で最新の情報を確認してください。"
                     },
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                response_format={"type": "json_object"}
+                temperature=0.3
             )
             
-            result = json.loads(response.choices[0].message.content)
-            sns_urls = result.get('sns_urls', [])
+            # JSON部分を抽出
+            content = response.choices[0].message.content
+            try:
+                if '```json' in content:
+                    json_str = content.split('```json')[1].split('```')[0].strip()
+                elif '```' in content:
+                    json_str = content.split('```')[1].split('```')[0].strip()
+                else:
+                    json_str = content
+                
+                result = json.loads(json_str)
+                sns_urls = result.get('sns_urls', [])
+            except:
+                self.stdout.write(self.style.WARNING("    JSON形式の抽出に失敗しました"))
+                sns_urls = []
             
             # ログ出力
             if sns_urls:
@@ -328,15 +376,16 @@ class Command(BaseCommand):
             return []
     
     def get_members_sns(self, group_name):
-        """一つのグループに所属するメンバーのSNSを取得する"""
+        """一つのグループに所属するメンバーのSNSを取得する（Perplexity Web検索使用）"""
         prompt = f"""
 地下アイドルグループ「{group_name}」に所属するメンバーと、各メンバーの個人SNSアカウントを特定してください。
 
 以下のルールに従ってください:
-1. 実在するメンバーのみを記載
-2. 各メンバーのTwitter（X）とInstagramのURLを探してください
-3. URLは完全な形式で記載
-4. JSON形式で出力
+1. Web検索で最新の情報を確認すること
+2. 実在するメンバーのみを記載
+3. 各メンバーのTwitter（X）とInstagramのURLを探してください
+4. URLは完全な形式で記載
+5. JSON形式で出力
 
 出力形式:
 {{
@@ -362,20 +411,32 @@ class Command(BaseCommand):
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="llama-3.1-sonar-large-128k-online",
                 messages=[
                     {
                         "role": "system",
-                        "content": "あなたは地下アイドルのメンバー情報に詳しい専門家です。"
+                        "content": "あなたは地下アイドルのメンバー情報に詳しい専門家です。Web検索で最新の情報を確認してください。"
                     },
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                response_format={"type": "json_object"}
+                temperature=0.3
             )
             
-            result = json.loads(response.choices[0].message.content)
-            members = result.get('members', [])
+            # JSON部分を抽出
+            content = response.choices[0].message.content
+            try:
+                if '```json' in content:
+                    json_str = content.split('```json')[1].split('```')[0].strip()
+                elif '```' in content:
+                    json_str = content.split('```')[1].split('```')[0].strip()
+                else:
+                    json_str = content
+                
+                result = json.loads(json_str)
+                members = result.get('members', [])
+            except:
+                self.stdout.write(self.style.WARNING("    JSON形式の抽出に失敗しました"))
+                members = []
             
             # ログ出力
             if members:
