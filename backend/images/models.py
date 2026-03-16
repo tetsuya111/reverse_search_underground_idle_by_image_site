@@ -3,6 +3,7 @@ from django.db import models
 
 class ImageData(models.Model):
     """画像データモデル"""
+    hashed=models.IntegerField(primary_key=True,verbose_name="ハッシュ値")
     image = models.ImageField(upload_to='images/', verbose_name='画像')
     source_url = models.URLField(max_length=500, verbose_name='取得元リンク')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='作成日時')

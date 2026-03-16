@@ -35,20 +35,29 @@
    - 全タグを画像数とともに一覧表示
    - タグクリックで該当画像を検索
 
-### バッチプログラム
+### Djangoカスタム管理コマンド
 
-1. **SNSリスト自動作成** (`scripts/generate_sns_list.py`)
+バッチプログラムはDjangoのカスタム管理コマンドとして実装されています。
+
+1. **SNSリスト自動作成** (`python manage.py generate_sns_list`)
    - キーワードからLLMでアイドルのSNSアカウントを特定
    
-2. **画像データ取得** (`scripts/fetch_images.py`)
-   - Instagram: Instaloaderを使用
-   - Twitter: twitterapi.io API（要実装）
+2. **地下アイドルグループ・メンバーSNS検索** (`python manage.py search_underground_idols`)
+   - 地下アイドルのグループ名を自動列挙
+   - 各グループの公式SNSを取得
+   - 所属メンバーの個人SNSを取得
+   - JSON形式とテキスト形式で出力
+   
+3. **画像データ取得** (`python manage.py fetch_images`)
+   - Instagram: Instaloaderを使用（ログイン認証対応）
+   - Twitter: twitterapi.io API
    - LLMでアイドル情報を自動抽出
 
-3. **画像タグ付け** (`scripts/tag_images.py`)
+4. **画像タグ付け** (`python manage.py tag_images`)
    - GPT-4o-miniで画像を分析
    - 20個以上のタグを自動生成
    - 必須タグ：人数、露出度（0-100点）
+   - グループ名・アイドル名を自動タグ化
 
 ## 🚀 セットアップ
 
@@ -131,33 +140,54 @@ TWITTER_API_KEY=your-twitter-api-key-here
 REACT_APP_API_URL=http://localhost:8000/api
 ```
 
-## 🔧 バッチプログラムの使用方法
+## 🔧 Djangoカスタムコマンドの使用方法
+
+すべてのバッチ処理は、Djangoの管理コマンドとして実装されています。
+`backend/`ディレクトリで以下のコマンドを実行してください。
 
 ### 1. SNSリストの自動作成
 
 ```bash
-cd scripts
-python generate_sns_list.py "東京 地下アイドル" sns_list.txt
+cd backend
+python manage.py generate_sns_list "東京 地下アイドル"
+
+# 出力ファイル名を指定
+python manage.py generate_sns_list "大阪 ライブアイドル" --output osaka_idols.txt
 ```
+
+**オプション:**
+- `keyword`: 検索キーワード（必須）
+- `--output`: 出力ファイル名（デフォルト: `sns_list.txt`）
 
 ### 2. 画像データの取得
 
 ```bash
-python fetch_images.py sns_list.txt
+cd backend
+python manage.py fetch_images sns_list.txt
 ```
+
+**引数:**
+- `sns_list_file`: SNSリストファイルのパス（必須）
 
 ### 3. 画像へのタグ付け
 
 ```bash
+cd backend
+
 # すべての未タグ画像にタグ付け
-python tag_images.py all
+python manage.py tag_images --all
 
 # 最大10件のみ処理
-python tag_images.py all 10
+python manage.py tag_images --all --limit 10
 
 # 特定の画像を再タグ付け
-python tag_images.py 42
+python manage.py tag_images --image-id 42
 ```
+
+**オプション:**
+- `--all`: すべての未タグ画像を処理
+- `--limit N`: 処理する画像の最大数
+- `--image-id ID`: 特定の画像IDを再タグ付け
 
 ## 📊 データベース設計
 

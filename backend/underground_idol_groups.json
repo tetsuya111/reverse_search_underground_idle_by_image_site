@@ -1,0 +1,167 @@
+[
+  {
+    "group_name": "アキシブproject",
+    "group_sns": [
+      "https://twitter.com/akishibu_project",
+      "https://www.instagram.com/akishibu_project/"
+    ],
+    "members": []
+  },
+  {
+    "group_name": "虹のコンキスタドール",
+    "group_sns": [
+      "https://twitter.com/nijicon",
+      "https://www.instagram.com/nijicon_official/"
+    ],
+    "members": [
+      {
+        "name": "高橋ひかる",
+        "sns": [
+          "https://twitter.com/hikaru_takahashi",
+          "https://www.instagram.com/hikaru_takahashi/"
+        ]
+      },
+      {
+        "name": "小田切ひかり",
+        "sns": [
+          "https://twitter.com/odagiri_hikari",
+          "https://www.instagram.com/odagiri_hikari/"
+        ]
+      },
+      {
+        "name": "山田朱莉",
+        "sns": [
+          "https://twitter.com/yamada_akari",
+          "https://www.instagram.com/yamada_akari/"
+        ]
+      }
+    ]
+  },
+  {
+    "group_name": "アップアップガールズ（仮）",
+    "group_sns": [
+      "https://twitter.com/upupgirls",
+      "https://www.instagram.com/upupgirls_official/"
+    ],
+    "members": [
+      {
+        "name": "佐藤綾乃",
+        "sns": [
+          "https://twitter.com/satoayano",
+          "https://www.instagram.com/satoayano/"
+        ]
+      },
+      {
+        "name": "森咲樹",
+        "sns": [
+          "https://twitter.com/morisaki",
+          "https://www.instagram.com/morisaki/"
+        ]
+      },
+      {
+        "name": "古川小夏",
+        "sns": [
+          "https://twitter.com/furukawa_konatsu",
+          "https://www.instagram.com/furukawa_konatsu/"
+        ]
+      }
+    ]
+  },
+  {
+    "group_name": "KissBee",
+    "group_sns": [
+      "https://twitter.com/KissBee_info",
+      "https://www.instagram.com/kissbee_official/"
+    ],
+    "members": []
+  },
+  {
+    "group_name": "Pimm's",
+    "group_sns": [
+      "https://twitter.com/Pimms_official",
+      "https://www.instagram.com/pimms_official/"
+    ],
+    "members": []
+  },
+  {
+    "group_name": "Jewel☆Neige",
+    "group_sns": [],
+    "members": []
+  },
+  {
+    "group_name": "CANDY GO!GO!",
+    "group_sns": [
+      "https://twitter.com/CANDYGOGO_info",
+      "https://www.instagram.com/candygo_go/"
+    ],
+    "members": []
+  },
+  {
+    "group_name": "SAY-LA",
+    "group_sns": [
+      "https://twitter.com/SAYLA_official",
+      "https://www.instagram.com/sayla_official/"
+    ],
+    "members": [
+      {
+        "name": "高橋あかり",
+        "sns": [
+          "https://twitter.com/takahashiakari",
+          "https://www.instagram.com/takahashiakari/"
+        ]
+      },
+      {
+        "name": "山本ゆうか",
+        "sns": [
+          "https://twitter.com/yamamotoyuka",
+          "https://www.instagram.com/yamamotoyuka/"
+        ]
+      },
+      {
+        "name": "佐藤りな",
+        "sns": [
+          "https://twitter.com/satorina",
+          "https://www.instagram.com/satorina/"
+        ]
+      }
+    ]
+  },
+  {
+    "group_name": "KRD8",
+    "group_sns": [
+      "https://twitter.com/KRD8_official",
+      "https://www.instagram.com/krd8_official/"
+    ],
+    "members": []
+  },
+  {
+    "group_name": "Kamen Joshi",
+    "group_sns": [
+      "https://twitter.com/kamenjoshi",
+      "https://www.instagram.com/kamenjoshi_official/"
+    ],
+    "members": [
+      {
+        "name": "アリス",
+        "sns": [
+          "https://twitter.com/alice_kamen",
+          "https://www.instagram.com/alice_kamen/"
+        ]
+      },
+      {
+        "name": "ミライ",
+        "sns": [
+          "https://twitter.com/mirai_kamen",
+          "https://www.instagram.com/mirai_kamen/"
+        ]
+      },
+      {
+        "name": "ユウナ",
+        "sns": [
+          "https://twitter.com/yuna_kamen",
+          "https://www.instagram.com/yuna_kamen/"
+        ]
+      }
+    ]
+  }
+]

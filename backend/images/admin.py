@@ -4,7 +4,7 @@ from .models import ImageData, IdolInfo, ImageTag
 
 @admin.register(ImageData)
 class ImageDataAdmin(admin.ModelAdmin):
-    list_display = ['id', 'source_url', 'created_at']
+    list_display = ['hashed', 'source_url', 'created_at']
     list_filter = ['created_at']
     search_fields = ['source_url']
     readonly_fields = ['created_at', 'updated_at']

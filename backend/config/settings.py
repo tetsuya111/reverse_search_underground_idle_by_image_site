@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'corsheaders',
     # Local apps
     'images',
+    "shared",
 ]
 
 MIDDLEWARE = [

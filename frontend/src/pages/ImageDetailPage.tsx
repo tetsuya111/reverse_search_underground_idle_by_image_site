@@ -59,7 +59,7 @@ const ImageDetailPage: React.FC = () => {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Grid container spacing={4}>
-        <Grid item xs={12} md={8}>
+        <Grid size={{xs:12,md:8}}>
           <Box sx={{ mb: 3 }}>
             <img
               src={image.image}
@@ -77,7 +77,7 @@ const ImageDetailPage: React.FC = () => {
           </MuiLink>
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        <Grid size={{xs:12,md:4}}>
           <Box sx={{ mb: 3 }}>
             <Typography variant="h5" gutterBottom>
               画像詳細
@@ -117,7 +117,7 @@ const ImageDetailPage: React.FC = () => {
           </Typography>
           <Grid container spacing={1}>
             {similarImages.map((similar) => (
-              <Grid item xs={6} sm={4} md={3} lg={2} key={similar.id}>
+              <Grid size={{xs:6,sm:4,md:3,lg:2}} key={similar.id}>
                 <Card>
                   <MuiLink href={`/image/${similar.id}`}>
                     <CardMedia
