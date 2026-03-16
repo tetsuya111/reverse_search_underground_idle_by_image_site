@@ -42,15 +42,22 @@
 1. **SNSリスト自動作成** (`python manage.py generate_sns_list`)
    - キーワードからLLMでアイドルのSNSアカウントを特定
    
-2. **画像データ取得** (`python manage.py fetch_images`)
-   - Instagram: Instaloaderを使用
-   - Twitter: twitterapi.io API（要実装）
+2. **地下アイドルグループ・メンバーSNS検索** (`python manage.py search_underground_idols`)
+   - 地下アイドルのグループ名を自動列挙
+   - 各グループの公式SNSを取得
+   - 所属メンバーの個人SNSを取得
+   - JSON形式とテキスト形式で出力
+   
+3. **画像データ取得** (`python manage.py fetch_images`)
+   - Instagram: Instaloaderを使用（ログイン認証対応）
+   - Twitter: twitterapi.io API
    - LLMでアイドル情報を自動抽出
 
-3. **画像タグ付け** (`python manage.py tag_images`)
+4. **画像タグ付け** (`python manage.py tag_images`)
    - GPT-4o-miniで画像を分析
    - 20個以上のタグを自動生成
    - 必須タグ：人数、露出度（0-100点）
+   - グループ名・アイドル名を自動タグ化
 
 ## 🚀 セットアップ
 

@@ -6,10 +6,11 @@
 
 1. [前提条件](#前提条件)
 2. [コマンド1: SNSリスト自動作成](#コマンド1-snsリスト自動作成)
-3. [コマンド2: 画像データ取得](#コマンド2-画像データ取得)
-4. [コマンド3: 画像タグ付け](#コマンド3-画像タグ付け)
-5. [ワークフロー例](#ワークフロー例)
-6. [トラブルシューティング](#トラブルシューティング)
+3. [コマンド2: 地下アイドルグループ・メンバーSNS検索](#コマンド2-地下アイドルグループメンバーsns検索)
+4. [コマンド3: 画像データ取得](#コマンド3-画像データ取得)
+5. [コマンド4: 画像タグ付け](#コマンド4-画像タグ付け)
+6. [ワークフロー例](#ワークフロー例)
+7. [トラブルシューティング](#トラブルシューティング)
 
 ## 前提条件
 
@@ -88,7 +89,177 @@ python manage.py generate_sns_list --help
 - 生成されたリストは手動で確認・編集することを推奨します
 - APIの使用料金が発生します（OpenAI API）
 
-## コマンド2: 画像データ取得
+## コマンド2: 地下アイドルグループ・メンバーSNS検索
+
+### 概要
+
+地下アイドルのグループ名を自動的に列挙し、各グループの公式SNSと所属メンバーの個人SNSを一括取得します。
+LLM（GPT-4o-mini）を使用して、グループ情報とメンバー情報を構造化されたJSON形式で保存します。
+
+### 使用方法
+
+```bash
+python manage.py search_underground_idols [オプション]
+```
+
+### オプション
+
+- `--region <地域名>`: 地域指定（デフォルト: 東京）
+  - 例: "東京"、"大阪"、"名古屋"、"福岡"
+- `--output-groups <ファイル名>`: グループ情報の出力ファイル名（デフォルト: `underground_idol_groups.json`）
+- `--output-sns <ファイル名>`: SNSリストの出力ファイル名（デフォルト: `underground_idol_sns_list.txt`）
+- `--limit <数値>`: 取得するグループの最大数（デフォルト: 10）
+
+### 実行例
+
+```bash
+# 基本的な使用方法（東京の地下アイドル10グループ）
+python manage.py search_underground_idols
+
+# 大阪の地下アイドルを検索
+python manage.py search_underground_idols --region 大阪
+
+# 20グループまで取得
+python manage.py search_underground_idols --limit 20
+
+# 出力ファイル名を指定
+python manage.py search_underground_idols --region 福岡 --output-groups fukuoka_groups.json --output-sns fukuoka_sns.txt
+```
+
+### 処理の流れ
+
+#### ステップ1: グループ名の列挙
+指定された地域で活動している地下アイドルグループを自動的に列挙します。
+
+```
+==================================================
+ステップ1: 東京の地下アイドルグループを検索中...
+==================================================
+
+✓ 10個のグループが見つかりました
+  1. 仮面女子
+  2. アイドルネッサンス
+  3. 豆柴の大群
+  4. BiS
+  5. FES☆TIVE
+  6. ベイビーレイズJAPAN
+  7. 虹のコンキスタドール
+  8. わーすた
+  9. でんぱ組.inc
+  10. GANG PARADE
+```
+
+#### ステップ2: グループSNSとメンバーSNSの取得
+
+各グループについて、以下の情報を取得します：
+1. **グループ公式SNS**: Twitter、Instagram
+2. **所属メンバー一覧と各メンバーの個人SNS**
+
+```
+==================================================
+ステップ2: 各グループの詳細情報を取得中...
+==================================================
+
+[1/10] 仮面女子
+--------------------------------------------------
+    グループSNS: https://twitter.com/kamenjoshi
+    グループSNS: https://www.instagram.com/kamenjoshi_official/
+    メンバー: 神谷えりな (2個のSNS)
+      - https://twitter.com/erina_kamiya
+      - https://www.instagram.com/erina_kamiya/
+    メンバー: 月野もあ (2個のSNS)
+      - https://twitter.com/moa_tsukino
+      - https://www.instagram.com/moa_tsukino/
+  ✓ グループSNS: 2個
+  ✓ メンバー: 8人
+```
+
+#### ステップ3: 結果の保存
+
+2つのファイルに結果を保存します：
+
+**1. JSON形式（詳細情報）**: `underground_idol_groups.json`
+
+```json
+[
+  {
+    "group_name": "仮面女子",
+    "group_sns": [
+      "https://twitter.com/kamenjoshi",
+      "https://www.instagram.com/kamenjoshi_official/"
+    ],
+    "members": [
+      {
+        "name": "神谷えりな",
+        "sns": [
+          "https://twitter.com/erina_kamiya",
+          "https://www.instagram.com/erina_kamiya/"
+        ]
+      },
+      {
+        "name": "月野もあ",
+        "sns": [
+          "https://twitter.com/moa_tsukino",
+          "https://www.instagram.com/moa_tsukino/"
+        ]
+      }
+    ]
+  }
+]
+```
+
+**2. テキスト形式（SNSリスト）**: `underground_idol_sns_list.txt`
+
+```
+https://twitter.com/kamenjoshi
+https://www.instagram.com/kamenjoshi_official/
+https://twitter.com/erina_kamiya
+https://www.instagram.com/erina_kamiya/
+https://twitter.com/moa_tsukino
+https://www.instagram.com/moa_tsukino/
+```
+
+### サマリー表示
+
+```
+==================================================
+サマリー
+==================================================
+総グループ数: 10
+総SNS URL数: 156
+
+✓ 処理が完了しました！
+```
+
+### ヘルプの表示
+
+```bash
+python manage.py search_underground_idols --help
+```
+
+### 注意事項
+
+- LLMが生成する情報は必ずしも100%正確とは限りません
+- 生成されたデータは手動で確認・検証することを推奨します
+- 大量のグループを処理する場合、APIの使用料金が高額になる可能性があります
+- 1グループあたりの処理時間は約10-20秒です
+
+### ワークフローへの統合
+
+このコマンドで生成されたSNSリストは、そのまま `fetch_images` コマンドで使用できます：
+
+```bash
+# ステップ1: 地下アイドルのSNSを検索
+python manage.py search_underground_idols --region 東京
+
+# ステップ2: 生成されたSNSリストから画像を取得
+python manage.py fetch_images underground_idol_sns_list.txt
+
+# ステップ3: 取得した画像にタグ付け
+python manage.py tag_images --all
+```
+
+## コマンド3: 画像データ取得
 
 ### 概要
 
@@ -174,7 +345,7 @@ python manage.py fetch_images --help
 - APIキーが設定されていない場合、該当するSNSの処理はスキップされます
 - ネットワークエラーや取得失敗は自動的にスキップされます
 
-## コマンド3: 画像タグ付け
+## コマンド4: 画像タグ付け
 
 ### 概要
 
@@ -275,7 +446,28 @@ python manage.py tag_images --help
 
 ## ワークフロー例
 
-### シナリオ1: 新しい地下アイドルグループを追加
+### シナリオ1: 地下アイドルの画像を一括収集（推奨）
+
+```bash
+cd backend
+
+# 1. 地域の地下アイドルグループとメンバーSNSを自動検索
+python manage.py search_underground_idols --region 東京 --limit 15
+
+# 2. 生成されたJSON情報を確認
+cat underground_idol_groups.json | jq
+
+# 3. 生成されたSNSリストから画像を取得
+python manage.py fetch_images underground_idol_sns_list.txt
+
+# 4. 取得した画像にタグ付け（最初は少数でテスト）
+python manage.py tag_images --all --limit 5
+
+# 5. 問題なければ全件処理
+python manage.py tag_images --all
+```
+
+### シナリオ2: 新しい地下アイドルグループを追加
 
 ```bash
 cd backend
