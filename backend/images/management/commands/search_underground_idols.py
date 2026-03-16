@@ -5,6 +5,7 @@ Djangoカスタムコマンド: 地下アイドルグループ・メンバーSNS
 
 import os
 import json
+import sys
 from django.core.management.base import BaseCommand, CommandError
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -43,12 +44,18 @@ class Command(BaseCommand):
             default=10,
             help='取得するグループの最大数（デフォルト: 10）'
         )
+        parser.add_argument(
+            '--stdin',
+            action='store_true',
+            help='標準入力からグループ名を読み込む'
+        )
 
     def handle(self, *args, **options):
         region = options['region']
         output_groups = options['output_groups']
         output_sns = options['output_sns']
         limit = options['limit']
+        use_stdin = options['stdin']
         
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
@@ -56,12 +63,21 @@ class Command(BaseCommand):
         
         self.client = OpenAI(api_key=api_key)
         
-        # ステップ1: 地下アイドルグループ名を列挙
-        self.stdout.write(f"\n{'='*60}")
-        self.stdout.write(f"ステップ1: {region}の地下アイドルグループを検索中...")
-        self.stdout.write(f"{'='*60}\n")
-        
-        group_names = self.enumerate_underground_idol_groups(region, limit)
+        # ステップ1: グループ名の取得
+        if use_stdin:
+            # 標準入力からグループ名を読み込み
+            self.stdout.write(f"\n{'='*60}")
+            self.stdout.write(f"ステップ1: 標準入力からグループ名を読み込み中...")
+            self.stdout.write(f"{'='*60}\n")
+            
+            group_names = self.read_group_names_from_stdin()
+        else:
+            # LLMでグループ名を列挙
+            self.stdout.write(f"\n{'='*60}")
+            self.stdout.write(f"ステップ1: {region}の地下アイドルグループを検索中...")
+            self.stdout.write(f"{'='*60}\n")
+            
+            group_names = self.enumerate_underground_idol_groups(region, limit)
         
         if not group_names:
             raise CommandError('グループが見つかりませんでした')
@@ -139,6 +155,79 @@ class Command(BaseCommand):
         self.stdout.write(f"総グループ数: {len(all_groups_data)}")
         self.stdout.write(f"総SNS URL数: {len(all_sns_urls)}")
         self.stdout.write(self.style.SUCCESS("\n✓ 処理が完了しました！\n"))
+    
+    def read_group_names_from_stdin(self):
+        """標準入力からグループ名を読み込み、LLMで抽出する"""
+        self.stdout.write("標準入力からテキストを読み込んでいます...")
+        self.stdout.write("（入力を終了するには Ctrl+D を押してください）\n")
+        
+        # 標準入力から全テキストを読み込み
+        input_text = sys.stdin.read().strip()
+        
+        if not input_text:
+            self.stdout.write(self.style.WARNING("入力が空です"))
+            return []
+        
+        self.stdout.write(f"\n読み込んだテキスト（最初の200文字）:")
+        self.stdout.write(f"{input_text[:200]}...\n")
+        
+        # LLMでグループ名を抽出
+        return self.extract_group_names_from_text(input_text)
+    
+    def extract_group_names_from_text(self, text):
+        """テキストからグループ名を抽出する"""
+        self.stdout.write("\nLLMでグループ名を抽出中...")
+        
+        prompt = f"""
+以下のテキストから、地下アイドルグループ名を全て抽出してください。
+
+テキスト:
+{text}
+
+以下のルールに従ってください:
+1. テキスト内に含まれるアイドルグループ名のみを抽出
+2. グループ名は正確に抽出（表記揺れに注意）
+3. 重複は除外
+4. グループ名のみで、説明やコメントは不要
+5. JSON形式で出力
+
+出力形式:
+{{
+    "groups": ["グループ名1", "グループ名2", "グループ名3", ...]
+}}
+
+グループ名が見つからない場合は空配列を返してください。
+"""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "あなたはテキスト解析の専門家です。与えられたテキストからアイドルグループ名を正確に抽出してください。"
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2,
+                response_format={"type": "json_object"}
+            )
+            
+            result = json.loads(response.choices[0].message.content)
+            groups = result.get('groups', [])
+            
+            if groups:
+                self.stdout.write(self.style.SUCCESS(f"✓ {len(groups)}個のグループ名を抽出しました"))
+                for i, name in enumerate(groups, 1):
+                    self.stdout.write(f"  {i}. {name}")
+            else:
+                self.stdout.write(self.style.WARNING("グループ名が見つかりませんでした"))
+            
+            return groups
+        
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error extracting group names: {e}"))
+            return []
     
     def enumerate_underground_idol_groups(self, region, limit):
         """地下アイドルグループ名を列挙する"""

@@ -109,6 +109,7 @@ python manage.py search_underground_idols [オプション]
 - `--output-groups <ファイル名>`: グループ情報の出力ファイル名（デフォルト: `underground_idol_groups.json`）
 - `--output-sns <ファイル名>`: SNSリストの出力ファイル名（デフォルト: `underground_idol_sns_list.txt`）
 - `--limit <数値>`: 取得するグループの最大数（デフォルト: 10）
+- `--stdin`: 標準入力からグループ名を読み込む（LLMで自動抽出）
 
 ### 実行例
 
@@ -124,11 +125,27 @@ python manage.py search_underground_idols --limit 20
 
 # 出力ファイル名を指定
 python manage.py search_underground_idols --region 福岡 --output-groups fukuoka_groups.json --output-sns fukuoka_sns.txt
+
+# 標準入力からグループ名を読み込み
+echo "仮面女子、BiS、豆柴の大群" | python manage.py search_underground_idols --stdin
+
+# ファイルからグループ名を読み込み
+cat group_list.txt | python manage.py search_underground_idols --stdin
+
+# 複数行のテキストからグループ名を抽出
+python manage.py search_underground_idols --stdin << EOF
+昨日のライブは最高だった！
+仮面女子とアイドルネッサンスが共演してて、
+BiSのパフォーマンスも圧巻だった。
+次は豆柴の大群のライブに行きたいな。
+EOF
 ```
 
 ### 処理の流れ
 
-#### ステップ1: グループ名の列挙
+#### モード1: LLMで自動検索（デフォルト）
+
+##### ステップ1: グループ名の列挙
 指定された地域で活動している地下アイドルグループを自動的に列挙します。
 
 ```
@@ -147,6 +164,46 @@ python manage.py search_underground_idols --region 福岡 --output-groups fukuok
   8. わーすた
   9. でんぱ組.inc
   10. GANG PARADE
+```
+
+#### モード2: 標準入力からグループ名を読み込み（--stdin）
+
+##### ステップ1: 標準入力から読み込み＆グループ名抽出
+
+LLMが自動的にテキストからグループ名を抽出します。
+
+**入力例**:
+```
+昨日のライブは最高だった！
+仮面女子とアイドルネッサンスが共演してて、
+BiSのパフォーマンスも圧巻だった。
+次は豆柴の大群のライブに行きたいな。
+でんぱ組.incのライブも行きたい。
+```
+
+**出力**:
+```
+==================================================
+ステップ1: 標準入力からグループ名を読み込み中...
+==================================================
+標準入力からテキストを読み込んでいます...
+（入力を終了するには Ctrl+D を押してください）
+
+読み込んだテキスト（最初の200文字）:
+昨日のライブは最高だった！
+仮面女子とアイドルネッサンスが共演してて、
+BiSのパフォーマンスも圧巻だった。
+次は豆柴の大群のライブに行きたいな。
+でんぱ組.incのライブも行きたい。
+...
+
+LLMでグループ名を抽出中...
+✓ 5個のグループ名を抽出しました
+  1. 仮面女子
+  2. アイドルネッサンス
+  3. BiS
+  4. 豆柴の大群
+  5. でんぱ組.inc
 ```
 
 #### ステップ2: グループSNSとメンバーSNSの取得
@@ -243,10 +300,16 @@ python manage.py search_underground_idols --help
 - 生成されたデータは手動で確認・検証することを推奨します
 - 大量のグループを処理する場合、APIの使用料金が高額になる可能性があります
 - 1グループあたりの処理時間は約10-20秒です
+- `--stdin` モードでは、LLMがテキストからグループ名を自動抽出します
+  - 表記揺れ（例: でんぱ組.inc vs でんぱ組inc）は自動補正されます
+  - 単語の区切りや文章形式を気にせず、自由に入力できます
+  - グループ名以外の情報（日付、場所、感想など）が含まれていても問題ありません
 
 ### ワークフローへの統合
 
 このコマンドで生成されたSNSリストは、そのまま `fetch_images` コマンドで使用できます：
+
+#### パターン1: LLM自動検索
 
 ```bash
 # ステップ1: 地下アイドルのSNSを検索
@@ -257,6 +320,32 @@ python manage.py fetch_images underground_idol_sns_list.txt
 
 # ステップ3: 取得した画像にタグ付け
 python manage.py tag_images --all
+```
+
+#### パターン2: 標準入力からグループ名を指定
+
+```bash
+# ステップ1: テキストファイルからグループ名を抽出してSNS検索
+cat idol_memo.txt | python manage.py search_underground_idols --stdin
+
+# または、直接テキストを入力
+echo "仮面女子、BiS、豆柴の大群のライブに行った" | python manage.py search_underground_idols --stdin
+
+# ステップ2: 生成されたSNSリストから画像を取得
+python manage.py fetch_images underground_idol_sns_list.txt
+
+# ステップ3: 取得した画像にタグ付け
+python manage.py tag_images --all
+```
+
+#### パターン3: インタラクティブ入力
+
+```bash
+# ステップ1: 対話的にグループ名を入力
+python manage.py search_underground_idols --stdin
+# （ここでグループ名を含むテキストを入力して Ctrl+D で終了）
+
+# ステップ2〜3: 上記と同じ
 ```
 
 ## コマンド3: 画像データ取得
