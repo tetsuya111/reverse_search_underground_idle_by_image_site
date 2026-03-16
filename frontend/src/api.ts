@@ -51,9 +51,14 @@ export interface ImageFilterParams {
 // 画像一覧取得
 export const getImages = async (
   page: number = 1,
+  tag:string = "",
   filters?: ImageFilterParams
 ): Promise<PaginatedResponse<ImageData>> => {
+  //let url = `/images/by_tag/?page=${page}`;
   let url = `/images/?page=${page}`;
+  if(tag){
+    url+=`&tag=${tag}`;
+  }
   
   if (filters?.person_count_min) {
     url += `&person_count_min=${filters.person_count_min}`;

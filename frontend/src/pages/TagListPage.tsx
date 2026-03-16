@@ -130,7 +130,7 @@ const TagListPage: React.FC = () => {
       <Box sx={{ mt: 3 }}>
         <Grid container spacing={2}>
           {tags.map((tag, index) => (
-            <Grid item key={index}>
+            <Grid size={{}} key={index}>
               <Chip
                 label={`${tag.tag_name} (${tag.count})`}
                 component={RouterLink}

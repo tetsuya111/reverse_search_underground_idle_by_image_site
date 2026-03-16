@@ -23,7 +23,7 @@ class ImageDataListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ImageData
-        fields = ['id', 'image', 'source_url', 'tags', 'idol_info', 'created_at']
+        fields = ['pk', 'image', 'source_url', 'tags', 'idol_info', 'created_at']
 
 
 class ImageDataDetailSerializer(serializers.ModelSerializer):
@@ -33,7 +33,7 @@ class ImageDataDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ImageData
-        fields = ['id', 'image', 'source_url', 'tags', 'idol_info', 'created_at', 'updated_at']
+        fields = ['pk', 'image', 'source_url', 'tags', 'idol_info', 'created_at', 'updated_at']
 
 
 class TagStatSerializer(serializers.Serializer):

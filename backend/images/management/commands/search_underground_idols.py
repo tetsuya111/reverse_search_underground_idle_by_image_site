@@ -9,6 +9,8 @@ from django.core.management.base import BaseCommand, CommandError
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from images.models import IdolInfo
+
 # 環境変数読み込み
 load_dotenv()
 
@@ -140,15 +142,21 @@ class Command(BaseCommand):
     
     def enumerate_underground_idol_groups(self, region, limit):
         """地下アイドルグループ名を列挙する"""
+        group_names=IdolInfo.objects.all().values_list("group_name",flat=True)
+        group_names="\n".join(group_names)
         prompt = f"""
 あなたは地下アイドルの専門家です。{region}で活動している地下アイドルグループを{limit}個列挙してください。
 
 以下のルールに従ってください:
 1. 実在する地下アイドルグループのみを記載
 2. メジャーではなく、ライブハウスや小規模会場で活動しているグループを優先
-3. 各行に1つのグループ名のみを記載
-4. グループ名のみで、説明やコメントは不要
-5. JSON形式で出力
+3.最新情報をみて活動中であると判断できるグループ
+4. 各行に1つのグループ名のみを記載
+5. グループ名のみで、説明やコメントは不要
+6. JSON形式で出力
+
+# 以下のグループ以外を取得すること
+{group_names}
 
 出力形式:
 {{

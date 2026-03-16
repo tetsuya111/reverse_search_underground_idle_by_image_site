@@ -14,6 +14,9 @@ import instaloader
 from openai import OpenAI
 from images.models import ImageData, IdolInfo
 
+from shared.twitterapi import _get_media_urls_by_userid,get_mediaid_by_imgurl
+from shared.image_util import tohash
+
 # 環境変数読み込み
 load_dotenv()
 
@@ -23,13 +26,20 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            'sns_list_file',
+            '--sns-list-file',
             type=str,
             help='SNSリストファイルのパス'
+        )
+        parser.add_argument(
+            '--count',
+            default=100,
+            type=int,
+            help='登録する画像の数',
         )
 
     def handle(self, *args, **options):
         list_file = options['sns_list_file']
+        count = options['count']
         
         if not os.path.exists(list_file):
             raise CommandError(f'File not found: {list_file}')
@@ -52,9 +62,10 @@ class Command(BaseCommand):
             self.stdout.write(f"\nProcessing: {url}")
             
             if 'instagram.com' in url:
+                continue
                 self.fetch_from_instagram(url)
             elif 'twitter.com' in url or 'x.com' in url:
-                self.fetch_from_twitter(url)
+                self.fetch_from_twitter(url,count=count)
             else:
                 self.stdout.write(self.style.WARNING(f"Unknown SNS platform: {url}"))
     
@@ -111,7 +122,7 @@ URL: {sns_url}
             self.stdout.write(self.style.ERROR(f"Error extracting idol info: {e}"))
             return {'group_name': '', 'idol_name': ''}
     
-    def fetch_from_instagram(self, instagram_url):
+    def fetch_from_instagram(self, instagram_url,count=20):
         """Instagramから画像を取得"""
         try:
             L = instaloader.Instaloader(
@@ -146,7 +157,6 @@ URL: {sns_url}
             idol_info = self.extract_idol_info(instagram_url)
             
             # 最新の投稿から画像を取得（最大20件）
-            count = 0
             for post in profile.get_posts():
                 if count >= 20:
                     break
@@ -185,7 +195,7 @@ URL: {sns_url}
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error fetching from Instagram {instagram_url}: {e}"))
     
-    def fetch_from_twitter(self, twitter_url):
+    def fetch_from_twitter(self, twitter_url,count=50):
         """twitterapi.ioを使用してTwitterから画像を取得"""
         if not self.twitter_api_key:
             self.stdout.write(self.style.WARNING("Twitter API key not configured. Skipping Twitter."))
@@ -200,92 +210,48 @@ URL: {sns_url}
             self.stdout.write(f"Fetching Twitter profile: @{username}")
             
             # twitterapi.io APIを使用してツイートを取得
-            api_url = 'https://api.twitterapi.io/twitter/user/tweets'
-            headers = {
-                'x-api-key': self.twitter_api_key
-            }
-            params = {
-                'userName': username,
-                'count': 20  # 最大20件取得
-            }
-            
-            response = requests.get(api_url, headers=headers, params=params, timeout=30)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            if data.get('status') != 'success':
-                self.stdout.write(self.style.ERROR(f"API Error: {data.get('message', 'Unknown error')}"))
-                return
-            
-            tweets = data.get('tweets', [])
-            self.stdout.write(f"Found {len(tweets)} tweets")
-            
-            # アイドル情報を抽出（1回のみ）
-            idol_info = self.extract_idol_info(twitter_url)
-            
-            # 画像を含むツイートから画像を抽出
-            count = 0
-            for tweet in tweets:
-                # メディアが含まれているか確認
-                media_list = tweet.get('media', [])
+            for data in _get_media_urls_by_userid(username,min_=count):
+                tweet=data["tweet"]
+                image_url=data["imgurl"]
+                # 高解像度版のURLを取得（:orig を追加）
+                if not image_url.endswith(':orig'):
+                    image_url = f"{image_url}:orig"
+                mediaid=get_mediaid_by_imgurl(image_url)
+                image_filename = f"tw_{username}_{mediaid}.jpg"
                 
-                # entitiesからもメディアを取得を試みる
-                entities = tweet.get('entities', {})
-                if not media_list and 'media' in entities:
-                    media_list = entities.get('media', [])
+                # 画像をダウンロード
+                image_path = self.download_image(image_url, image_filename)
                 
-                if not media_list:
+                if not image_path:
                     continue
                 
-                # 各メディア（画像）をダウンロード
-                for media in media_list:
-                    # 画像のみを処理（動画は除外）
-                    media_type = media.get('type', '')
-                    if media_type not in ['photo', 'image']:
-                        continue
-                    
-                    # 画像URLを取得
-                    # media_url_https または media_url を使用
-                    image_url = media.get('media_url_https') or media.get('media_url') or media.get('url')
-                    
-                    if not image_url:
-                        continue
-                    
-                    # 高解像度版のURLを取得（:orig を追加）
-                    if not image_url.endswith(':orig'):
-                        image_url = f"{image_url}:orig"
-                    
-                    tweet_id = tweet.get('id', '')
-                    image_filename = f"tw_{username}_{tweet_id}_{media.get('id', count)}.jpg"
-                    
-                    # 画像をダウンロード
-                    image_path = self.download_image(image_url, image_filename)
-                    
-                    if not image_path:
-                        continue
-                    
-                    # DBに保存
-                    relative_path = f"images/{image_filename}"
-                    tweet_url = tweet.get('url', f"https://twitter.com/{username}/status/{tweet_id}")
-                    
-                    image_data, created = ImageData.objects.get_or_create(
-                        source_url=tweet_url,
-                        defaults={'image': relative_path}
-                    )
-                    
-                    if created:
-                        # アイドル情報を保存
-                        IdolInfo.objects.create(
-                            image=image_data,
-                            group_name=idol_info.get('group_name', ''),
-                            idol_name=idol_info.get('idol_name', '')
-                        )
-                        self.stdout.write(self.style.SUCCESS(f"Saved: {image_filename}"))
-                        count += 1
-                    else:
-                        self.stdout.write(f"Already exists: {image_filename}")
+                # DBに保存
+                relative_path = str(self.media_dir / image_filename)
+                tweet_id=tweet["id"]
+                tweet_url = tweet.get('url', f"https://twitter.com/{username}/status/{tweet_id}")
+
+                hashed=tohash(relative_path) 
+                image_data, created = ImageData.objects.get_or_create(
+                    hashed=hashed,
+                    source_url=tweet_url,
+                    defaults={'image': relative_path}
+                )
             
+                # アイドル情報を抽出
+                idol_info = self.extract_idol_info(tweet_url)
+                
+                if created:
+                    # アイドル情報を保存
+                    IdolInfo.objects.create(
+                        image=image_data,
+                        group_name=idol_info.get('group_name', ''),
+                        idol_name=idol_info.get('idol_name', '')
+                    )
+                    self.stdout.write(self.style.SUCCESS(f"Saved: {image_filename}"))
+                    count += 1
+                else:
+                    self.stdout.write(f"Already exists: {image_filename}")
+        
             self.stdout.write(self.style.SUCCESS(f"Fetched {count} images from Twitter: @{username}"))
         
         except requests.exceptions.RequestException as e:

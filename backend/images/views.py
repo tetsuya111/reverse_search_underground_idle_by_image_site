@@ -63,7 +63,7 @@ class ImageDataViewSet(viewsets.ReadOnlyModelViewSet):
                         if match:
                             exposure_value = int(match.group(1))
                             if int(exposure_min) <= exposure_value <= int(exposure_max):
-                                image_ids.append(image.id)
+                                image_ids.append(image.pk)
                                 break
                 queryset = queryset.filter(id__in=image_ids)
             elif exposure_min:
@@ -73,7 +73,7 @@ class ImageDataViewSet(viewsets.ReadOnlyModelViewSet):
                     for tag in image.tags.all():
                         match = re.match(r'露出度:(\d+)', tag.tag_name)
                         if match and int(match.group(1)) >= int(exposure_min):
-                            image_ids.append(image.id)
+                            image_ids.append(image.pk)
                             break
                 queryset = queryset.filter(id__in=image_ids)
             elif exposure_max:
@@ -83,7 +83,7 @@ class ImageDataViewSet(viewsets.ReadOnlyModelViewSet):
                     for tag in image.tags.all():
                         match = re.match(r'露出度:(\d+)', tag.tag_name)
                         if match and int(match.group(1)) <= int(exposure_max):
-                            image_ids.append(image.id)
+                            image_ids.append(image.pk)
                             break
                 queryset = queryset.filter(id__in=image_ids)
         
@@ -108,7 +108,7 @@ class ImageDataViewSet(viewsets.ReadOnlyModelViewSet):
         # 同じタグを持つ画像を取得（自身を除く）
         similar_images = ImageData.objects.filter(
             tags__tag_name__in=tag_names
-        ).exclude(id=image.id).distinct()[:20]
+        ).exclude(id=image.pk).distinct()[:20]
         
         serializer = ImageDataListSerializer(similar_images, many=True)
         return Response(serializer.data)
@@ -118,12 +118,9 @@ class ImageDataViewSet(viewsets.ReadOnlyModelViewSet):
         """タグで画像を検索"""
         tag_name = request.query_params.get('tag', None)
         if not tag_name:
-            return Response(
-                {'error': 'tag parameter is required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        images = self.get_queryset().filter(tags__tag_name=tag_name).distinct()
+            images = self.get_queryset().all().distinct()
+        else:
+            images = self.get_queryset().filter(tags__tag_name=tag_name).distinct()
         serializer = self.get_serializer(images, many=True)
         return Response(serializer.data)
 

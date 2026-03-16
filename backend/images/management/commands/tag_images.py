@@ -128,7 +128,7 @@ JSON形式で以下のように出力してください:
         self.stdout.write(f"Found {total} untagged images")
         
         for idx, image_data in enumerate(untagged_images, 1):
-            self.stdout.write(f"\nProcessing [{idx}/{total}]: Image ID {image_data.id}")
+            self.stdout.write(f"\nProcessing [{idx}/{total}]: Image ID {image_data.pk}")
             
             # 画像パスを取得
             image_path = self.media_root / image_data.image.name
@@ -158,7 +158,7 @@ JSON形式で以下のように出力してください:
             
             # タグをDBに保存
             for tag_name in tags:
-                ImageTag.objects.create(
+                ImageTag.objects.get_or_create(
                     image=image_data,
                     tag_name=tag_name
                 )
@@ -205,7 +205,7 @@ JSON形式で以下のように出力してください:
         
         # タグをDBに保存
         for tag_name in tags:
-            ImageTag.objects.create(
+            ImageTag.objects.get_or_create(
                 image=image_data,
                 tag_name=tag_name
             )

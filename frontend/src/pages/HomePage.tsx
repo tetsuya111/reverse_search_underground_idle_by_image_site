@@ -24,12 +24,13 @@ const HomePage: React.FC = () => {
     
     try {
       // URLパラメータを取得
+      const tag=searchParams.get("tag") || "";
       const personCountMin = searchParams.get('person_count_min');
       const personCountMax = searchParams.get('person_count_max');
       const exposureMin = searchParams.get('exposure_min');
       const exposureMax = searchParams.get('exposure_max');
       
-      const response = await getImages(pageNum, {
+      const response = await getImages(pageNum, tag,{
         person_count_min: personCountMin,
         person_count_max: personCountMax,
         exposure_min: exposureMin,
@@ -132,7 +133,7 @@ const HomePage: React.FC = () => {
         <>
           <Grid container spacing={1}>
             {images.map((image) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={image.id}>
+              <Grid size={{xs:12,sm:6,md:4,lg:3,xl:2}} key={image.id}>
                 <ImageCard image={image} showInfo={showInfo} />
               </Grid>
             ))}
